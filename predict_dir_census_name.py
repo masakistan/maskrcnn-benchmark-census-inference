@@ -15,6 +15,7 @@ from os import makedirs
 from os import listdir
 from os.path import isfile, join
 
+BUFFER = 15
 
 cats = [
     '__ignore__',
@@ -84,6 +85,7 @@ for img_idx, img_path in enumerate(img_paths):
         continue
 
     items = list(zip(scores, labels, boxes))
+    name_header = list(filter(lambda x: x[1] == 3, items))
     items = list(filter(lambda x: x[1] == 2, items))
     items.sort(key = lambda x: x[2][1])
 
@@ -110,6 +112,7 @@ for img_idx, img_path in enumerate(img_paths):
 
     coords = []
     frags = []
+
     for idx, (score, label, box) in enumerate(items):
         x1, y1, x2, y2 = map(int, box.numpy())
         coords.append((x1, y1, x2, y2))
@@ -128,13 +131,21 @@ for img_idx, img_path in enumerate(img_paths):
 
     print('\tINFO: initially found', len(coords), 'snippets')
     new_coords = []
-    pcoord = coords[0]
-    for idx, ccoord in enumerate(coords[1:]):
 
-        if pcoord[3] + 5 > ccoord[1]:
+    # NOTE: check if the name col header is present, if it is, use that as the first thing
+    if len(name_header) > 0:
+        coords_check = coords
+        pcoord = list(map(int, name_header[0][2].numpy()))
+    else:
+        coords_check = coords[1:]
+        pcoord = coords[0]
+    
+    for idx, ccoord in enumerate(coords_check):
+
+        if pcoord[3] + BUFFER > ccoord[1]:
             pcoord = ccoord
         else:
-            while pcoord[3] + 5 <= ccoord[1]:
+            while pcoord[3] + BUFFER <= ccoord[1]:
                 y1 = pcoord[3]
                 y2 = y1 + avg_height
 
