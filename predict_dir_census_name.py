@@ -38,6 +38,6 @@ out_dir = sys.argv[3]
 
 for img_idx, img_path in enumerate(img_paths):
     print("{}/{} Processing image {}".format(img_idx, len(img_paths), img_path[-1]))
-    top_predictions, predictions = process(coc_demo, img_idx, img_path, out_dir)
+    top_predictions, predictions = process(coco_demo, img_idx, img_path, out_dir)
     #opath = join(out_dir, img_path[-1])
     #cv2.imwrite(opath, predictions)
