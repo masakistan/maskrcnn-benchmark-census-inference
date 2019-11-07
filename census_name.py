@@ -11,6 +11,9 @@ from os import makedirs
 from os import listdir
 from os.path import isfile, join
 
+from collections import namedtuple
+Rectangle = namedtuple('Rectangle', 'xmin ymin xmax ymax')
+
 BUFFER = 15
 cats = [
     '__ignore__',
@@ -28,6 +31,14 @@ cats = [
     'veteran_col',
     ]
 
+
+def area(a, b):  # returns None if rectangles don't intersect
+    a = Rectangle(*a)
+    b = Rectangle(*b)
+    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin)
+    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin)
+    if (dx>=0) and (dy>=0):
+        return dx*dy
 
 def process(coco_demo, img_idx, img_path, out_dir):
     # load image and then run prediction
@@ -67,6 +78,7 @@ def process(coco_demo, img_idx, img_path, out_dir):
     items = list(zip(scores, labels, boxes))
     items.sort(key = lambda x: x[2][1])
     name_header = list(filter(lambda x: x[1] == 3, items))
+    name_col = list(filter(lambda x: x[1] == 4, items))
     items = list(filter(lambda x: x[1] == 2, items))
 
     #print '\n'.join(map(str,items))
@@ -115,12 +127,34 @@ def process(coco_demo, img_idx, img_path, out_dir):
     if len(name_header) > 0:
         coords_check = coords
         pcoord = list(map(int, name_header[0][2].numpy()))
+        #print('col header coords:', pcoord)
     else:
         coords_check = coords[1:]
         pcoord = coords[0]
-    
+        print("ERROR! Could not find name column header, giving up")
+        return None
+
+    if len(name_col) > 0:
+        name_col_coord = list(map(int, name_col[0][2].numpy()))
+    else:
+        print("ERROR! Could not identify the name column, giving up")
+        return None
+
+    fixed_coords = []
+    filtered = 0
     for idx, ccoord in enumerate(coords_check):
 
+        overlap = area(name_col_coord, ccoord)
+        #print('p', pcoord)
+        #print('c', ccoord)
+        #print('o', overlap)
+
+        if overlap is None:
+            filtered += 1
+            continue
+
+        fixed_coords.append(ccoord)
+        
         if pcoord[3] + BUFFER > ccoord[1]:
             pcoord = ccoord
         else:
@@ -131,9 +165,22 @@ def process(coco_demo, img_idx, img_path, out_dir):
                 pcoord = (avg_x1, y1, avg_x2, y2)
                 new_coords.append(pcoord)
             pcoord = ccoord
-    coords += new_coords
+    coords = fixed_coords + new_coords
+
+    for coord in new_coords:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 0, 0]),
+            2
+        )
+
+    print("\tINFO: filtered out {} name fields".format(filtered))
 
     coords.sort(key=lambda x: (x[1] + x[3]) / 2)
+    print('\tINFO: correct amount?', exp == len(coords))
 
     for x1, y1, x2, y2 in coords:
         y1 -= 5
@@ -142,7 +189,6 @@ def process(coco_demo, img_idx, img_path, out_dir):
         frags.append(frag)
 
     print('\tINFO: final output of', len(frags), 'snippets')
-    print('\tINFO: correct amount?', exp == len(frags))
 
     print('\tinserted', len(new_coords), 'cells')
 

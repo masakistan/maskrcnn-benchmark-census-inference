@@ -8,7 +8,7 @@ import numpy as np
 import cv2, math
 from collections import Counter
 
-from census_name import process
+from census_name import process, cats
 
 config_file = sys.argv[1]
 
@@ -28,7 +28,7 @@ else:
     out_dir = None
     
 top_predictions, predictions = process(coco_demo, 0, sys.argv[2], out_dir)
-scores = top_predictions.get_field("scores")
-scores = np.sort(scores.numpy())
-print(scores)
+#scores = top_predictions.get_field("scores")
+#scores = np.sort(scores.numpy())
+#print(scores)
 io.imsave(sys.argv[3], predictions)
