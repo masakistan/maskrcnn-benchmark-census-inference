@@ -40,24 +40,24 @@ def area(a, b):  # returns None if rectangles don't intersect
     if (dx>=0) and (dy>=0):
         return dx*dy
 
-def process(coco_demo, img_idx, img_path, out_dir):
+def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     # load image and then run prediction
     try:
-        if type(img_path) == list:
+        if type(img_path) == list or type(img_path) == tuple:
             image = io.imread(join(*img_path))
         else:
             image = io.imread(img_path)
         if image.shape[0] < 1000 or image.shape[1] < 1000:
             print("ERROR: image has strange dimensions {}".format(image.shape))
             return
-    except:
-        print('ERROR: could not process', join(*img_path))
+    except Exception as e:
+        print('ERROR: could not process {} with exception {}'.format(join(*img_path), e))
         return
     if len(image.shape) == 2:
         image = color.gray2rgb(image)
     top_predictions, predictions = coco_demo.run_on_opencv_image(image)
     #plt.imsave(sys.argv[3] + '.jpg', predictions)
-    
+
     counts = Counter()
     for i in top_predictions.get_field('labels').tolist():
         i = cats[i]
@@ -83,7 +83,7 @@ def process(coco_demo, img_idx, img_path, out_dir):
 
     #print '\n'.join(map(str,items))
 
-    if type(img_path) == list:
+    if type(img_path) == list or type(img_path) == tuple:
         prefix = img_path[-1]
         prefix = prefix[:prefix.rfind('.')]
     else:
@@ -136,12 +136,14 @@ def process(coco_demo, img_idx, img_path, out_dir):
 
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
+        name_col_coord[1] = 0
+        name_col_coord[3] = image.shape[0]
     else:
         print("ERROR! Could not identify the name column, giving up")
         return None
 
     fixed_coords = []
-    filtered = 0
+    filtered = []
     for idx, ccoord in enumerate(coords_check):
 
         overlap = area(name_col_coord, ccoord)
@@ -150,11 +152,11 @@ def process(coco_demo, img_idx, img_path, out_dir):
         #print('o', overlap)
 
         if overlap is None:
-            filtered += 1
+            filtered.append(ccoord)
             continue
 
         fixed_coords.append(ccoord)
-        
+
         if pcoord[3] + BUFFER > ccoord[1]:
             pcoord = ccoord
         else:
@@ -177,7 +179,25 @@ def process(coco_demo, img_idx, img_path, out_dir):
             2
         )
 
-    print("\tINFO: filtered out {} name fields".format(filtered))
+    for coord in filtered:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 128, 0]),
+            2
+        )
+
+    if debug_dir:
+        try:
+            makedirs(debug_dir)
+        except:
+            pass
+        if exp != len(coords):
+            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
+
+    print("\tINFO: filtered out {} name fields".format(len(filtered)))
 
     coords.sort(key=lambda x: (x[1] + x[3]) / 2)
     print('\tINFO: correct amount?', exp == len(coords))
@@ -202,7 +222,7 @@ def process(coco_demo, img_idx, img_path, out_dir):
     except:
         print("\tINFO: maybe out dir already exists?")
 
-    
+
     for i, frag in enumerate(frags):
         fname = prefix + '_' + str(i) + '.jpg'
         out_path = join(img_out_dir, fname)
