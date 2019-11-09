@@ -50,10 +50,10 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             image = io.imread(img_path)
             img_path_str = img_path
         if image.shape[0] < 1000 or image.shape[1] < 1000:
-            print("ERROR: image has strange dimensions {}".format(image.shape))
+            print("{} Output status: FAIL! image has strange dimensions {}".format(img_path_str, image.shape))
             return
     except Exception as e:
-        print('ERROR: could not process {} with exception {}'.format(join(*img_path), e))
+        print("{} Output status: FAIL! could not process image with exception {}".format(img_path_str, e))
         return
     if len(image.shape) == 2:
         image = color.gray2rgb(image)
@@ -74,7 +74,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     data = torch.cat((scores.reshape(-1,1), boxes), 1)
 
     if len(boxes) == 0:
-        print('\tINFO: no cells found')
+        print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
         return
 
     items = list(zip(scores, labels, boxes))
@@ -210,7 +210,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             tuple([255, 0, 0]),
             2
         )
-        
+
     for coord in add_to_end:
         x1, y1, x2, y2 = coord
         predictions = cv2.rectangle(
@@ -266,7 +266,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             2
         )
 
-            
+
     if debug_dir:
         try:
             makedirs(debug_dir)
@@ -280,10 +280,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     print('\tINFO: inserted', len(new_coords), 'cells')
     print("\tINFO: inserted {} cells at the end".format(len(add_to_end)))
-    
+
 
     #print(out_dir, prefix)
     if out_dir is None:
+        print("{} Output status: PASS, fragments not written to disk".format(img_path_str))
         return top_predictions, predictions
 
     img_out_dir = join(out_dir, prefix)
