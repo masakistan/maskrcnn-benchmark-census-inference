@@ -112,6 +112,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     avg_x1 = int(math.ceil(sum([x1 for x1, y1, x2, y2 in coords]) / len(coords)))
     avg_x2 = int(math.ceil(sum([x2 for x1, y1, x2, y2 in coords]) / len(coords)))
 
+    print("\tINFO: name field avg height is {} with avg x1 {} and x2 {}".format(avg_height, avg_x1, avg_x2))
+
     # NOTE: corrections
     if len(coords) > 40:
         exp = 50
@@ -124,6 +126,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     new_coords = []
 
     # NOTE: check if the name col header is present, if it is, use that as the first thing
+    failed = False
     if len(name_header) > 0:
         coords_check = coords
         pcoord = list(map(int, name_header[0][2].numpy()))
@@ -131,8 +134,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     else:
         coords_check = coords[1:]
         pcoord = coords[0]
-        print("ERROR! Could not find name column header, giving up")
-        return None
+        print("\tOutput status: ERROR! Could not find name column header, giving up")
+        failed = True
 
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
@@ -140,8 +143,23 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         name_col_coord[1] = 0
         name_col_coord[3] = image.shape[0]
     else:
-        print("ERROR! Could not identify the name column, giving up")
+        print("\tOutput status: ERROR! Could not identify the name column, giving up")
+        failed = True
+
+    if len(items) <= 0:
+        print("\tOutput status: ERROR! found no fields on page, giving up")
+        failed = True
+
+    if failed:
+        if debug_dir:
+            try:
+                makedirs(debug_dir)
+            except:
+                pass
+            if exp != len(coords) or len(too_much_overlap) > 0:
+                cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
         return None
+
 
     fixed_coords = []
     filtered = []
@@ -174,7 +192,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     last = coords[-1]
     add_to_end = []
     while last[3] + avg_height - 10 < name_col_orig_end:
-        y1 = last[3] - 10
+        y1 = last[3] - 15
         y2 = y1 + avg_height
         new_coord = avg_x1, y1, avg_x2, y2
         add_to_end.append(new_coord)
@@ -253,7 +271,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             makedirs(debug_dir)
         except:
             pass
-        if exp != len(coords):
+        if exp != len(coords) or len(too_much_overlap) > 0:
             cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
 
 
@@ -263,7 +281,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     print("\tINFO: inserted {} cells at the end".format(len(add_to_end)))
     
 
-    print(out_dir, prefix)
+    #print(out_dir, prefix)
     if out_dir is None:
         return top_predictions, predictions
 
@@ -273,10 +291,14 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     except:
         print("\tINFO: maybe out dir already exists?")
 
-
     for i, frag in enumerate(frags):
         fname = prefix + '_' + str(i) + '.jpg'
         out_path = join(img_out_dir, fname)
         cv2.imwrite(out_path, frag)
+
+    if len(coords) == exp and len(too_much_overlap) == 0:
+        print("\tOutput status: PASS")
+    else:
+        print("\tOutput status: FAIL")
 
     return top_predictions, predictions
