@@ -45,8 +45,10 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     try:
         if type(img_path) == list or type(img_path) == tuple:
             image = io.imread(join(*img_path))
+            img_path_str = join(*img_path)
         else:
             image = io.imread(img_path)
+            img_path_str = img_path
         if image.shape[0] < 1000 or image.shape[1] < 1000:
             print("ERROR: image has strange dimensions {}".format(image.shape))
             return
@@ -134,7 +136,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     else:
         coords_check = coords[1:]
         pcoord = coords[0]
-        print("\tOutput status: ERROR! Could not find name column header, giving up")
+        print("{} Output status: ERROR! Could not find name column header, giving up".format(img_path_str))
         failed = True
 
     if len(name_col) > 0:
@@ -143,11 +145,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         name_col_coord[1] = 0
         name_col_coord[3] = image.shape[0]
     else:
-        print("\tOutput status: ERROR! Could not identify the name column, giving up")
+        print("{} Output status: ERROR! Could not identify the name column, giving up".format(img_path_str))
         failed = True
 
     if len(items) <= 0:
-        print("\tOutput status: ERROR! found no fields on page, giving up")
+        print("{} Output status: ERROR! found no fields on page, giving up".format(img_path_str))
         failed = True
 
     if failed:
@@ -190,7 +192,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     coords.sort(key=lambda x: (x[1] + x[3]) / 2)
     last = coords[-1]
     add_to_end = []
-    while last[3] + avg_height - 10 < name_col_orig_end:
+    while len(coords) < exp and last[3] + avg_height - 10 < name_col_orig_end:
         y1 = last[3] - 15
         y2 = y1 + avg_height
         new_coord = avg_x1, y1, avg_x2, y2
@@ -296,8 +298,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         cv2.imwrite(out_path, frag)
 
     if len(coords) == exp and len(too_much_overlap) == 0:
-        print("\tOutput status: PASS")
+        print("{} Output status: PASS".format(img_path_str))
     else:
-        print("\tOutput status: FAIL")
+        print("{} Output status: FAIL".format(img_path_str))
 
     return top_predictions, predictions
