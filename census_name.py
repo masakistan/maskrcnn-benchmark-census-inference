@@ -156,8 +156,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 makedirs(debug_dir)
             except:
                 pass
-            if exp != len(coords) or len(too_much_overlap) > 0:
-                cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
+            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
         return None
 
 
