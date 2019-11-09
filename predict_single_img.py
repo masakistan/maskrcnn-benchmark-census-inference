@@ -26,9 +26,9 @@ if len(sys.argv) > 4:
     out_dir = sys.argv[4]
 else:
     out_dir = None
-
+    
 top_predictions, predictions = process(coco_demo, 0, sys.argv[2], out_dir, None)
-#scores = top_predictions.get_field("scores")
-#scores = np.sort(scores.numpy())
-#print(scores)
+scores = top_predictions.get_field("scores")
+scores = np.sort(scores.numpy())
+print(scores)
 io.imsave(sys.argv[3], predictions)

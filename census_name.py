@@ -136,6 +136,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
+        name_col_orig_end = name_col_coord[3]
         name_col_coord[1] = 0
         name_col_coord[3] = image.shape[0]
     else:
@@ -169,6 +170,18 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             pcoord = ccoord
     coords = fixed_coords + new_coords
 
+    coords.sort(key=lambda x: (x[1] + x[3]) / 2)
+    last = coords[-1]
+    add_to_end = []
+    while last[3] + avg_height - 10 < name_col_orig_end:
+        y1 = last[3] - 10
+        y2 = y1 + avg_height
+        new_coord = avg_x1, y1, avg_x2, y2
+        add_to_end.append(new_coord)
+
+        last = new_coord
+    coords += add_to_end
+
     for coord in new_coords:
         x1, y1, x2, y2 = coord
         predictions = cv2.rectangle(
@@ -178,6 +191,16 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             tuple([255, 0, 0]),
             2
         )
+        
+    for coord in add_to_end:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 0, 255]),
+            2
+            )
 
     for coord in filtered:
         x1, y1, x2, y2 = coord
@@ -189,6 +212,42 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             2
         )
 
+    print("\tINFO: filtered out {} name fields".format(len(filtered)))
+
+    coords.sort(key=lambda x: (x[1] + x[3]) / 2)
+    print('\tINFO: correct amount?', exp == len(coords))
+    if len(coords) > exp:
+        coords = coords[:exp]
+        print("\tINFO: get top {} amount ? {}".format(exp, exp == len(coords)))
+
+    for x1, y1, x2, y2 in coords:
+        y1 -= 5
+        y2 += 20
+        frag = image[y1 : y2, x1 : x2]
+        frags.append(frag)
+
+
+    # NOTE: check to see if any cells overlap too much
+    write_debug = False
+    too_much_overlap = []
+    for idx, coord in enumerate(coords[:-1]):
+        c_y2 = coord[3]
+        n_y1 = coords[idx + 1][1]
+        if c_y2 - n_y1 > avg_height / 2:
+            print("\tINFO: found cells that overlap by {}".format(avg_height / 2))
+            too_much_overlap.append(coord)
+
+    for coord in too_much_overlap:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([128, 0, 255]),
+            2
+        )
+
+            
     if debug_dir:
         try:
             makedirs(debug_dir)
@@ -197,20 +256,12 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         if exp != len(coords):
             cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
 
-    print("\tINFO: filtered out {} name fields".format(len(filtered)))
-
-    coords.sort(key=lambda x: (x[1] + x[3]) / 2)
-    print('\tINFO: correct amount?', exp == len(coords))
-
-    for x1, y1, x2, y2 in coords:
-        y1 -= 5
-        y2 += 20
-        frag = image[y1 : y2, x1 : x2]
-        frags.append(frag)
 
     print('\tINFO: final output of', len(frags), 'snippets')
 
-    print('\tinserted', len(new_coords), 'cells')
+    print('\tINFO: inserted', len(new_coords), 'cells')
+    print("\tINFO: inserted {} cells at the end".format(len(add_to_end)))
+    
 
     print(out_dir, prefix)
     if out_dir is None:
