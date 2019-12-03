@@ -160,8 +160,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
         name_col_orig_end = name_col_coord[3]
-        name_col_coord[1] = 0
-        name_col_coord[3] = image.shape[0]
+        #name_col_coord[1] = 0
+        #name_col_coord[3] = image.shape[0]
         fixed_coords = []
         #filtered_coords = []
         n_filtered = 0
