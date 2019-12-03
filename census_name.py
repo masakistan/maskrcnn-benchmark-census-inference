@@ -171,9 +171,9 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 filtered = True
             else:
                 overlap /= calc_area(coord)
-                print('filtering overlap perc', overlap)
+                #print('filtering overlap perc', overlap)
                 if overlap < 0.05:
-                    print("filtering")
+                    #print("filtering")
                     filtered = True
                 else:
                     fixed_coords.append(coord)
@@ -272,7 +272,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
                     overlap = calc_overlap(ccoord, ncoord)
                     if overlap:
-                        print('overlap', overlap, overlap / calc_area(ncoord))
+                        #print('overlap', overlap, overlap / calc_area(ncoord))
                         overlap /= calc_area(ncoord)
                         if overlap > 0.9:
                             break
@@ -386,7 +386,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             makedirs(debug_dir)
         except:
             pass
-        if exp != len(coords) or len(too_much_overlap) > 0:
+        if exp != len(coords):
             cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
 
 
