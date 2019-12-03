@@ -26,6 +26,7 @@ if len(sys.argv) > 4:
     out_dir = sys.argv[4]
 else:
     out_dir = None
+<<<<<<< HEAD
 
 if len(sys.argv) > 5:
     debug_dir = sys.argv[5]

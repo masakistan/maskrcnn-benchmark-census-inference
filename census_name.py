@@ -55,13 +55,15 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     try:
         if type(img_path) == list or type(img_path) == tuple:
             image = io.imread(join(*img_path))
+            img_path_str = join(*img_path)
         else:
             image = io.imread(img_path)
+            img_path_str = img_path
         if image.shape[0] < 1000 or image.shape[1] < 1000:
-            print("ERROR: image has strange dimensions {}".format(image.shape))
+            print("{} Output status: FAIL! image has strange dimensions {}".format(img_path_str, image.shape))
             return
     except Exception as e:
-        print('ERROR: could not process {} with exception {}'.format(join(*img_path), e))
+        print("{} Output status: FAIL! could not process image with exception {}".format(img_path_str, e))
         return
     if len(image.shape) == 2:
         image = color.gray2rgb(image)
@@ -83,7 +85,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     data = torch.cat((scores.reshape(-1,1), boxes), 1)
 
     if len(boxes) == 0:
-        print('\tINFO: no cells found')
+        print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
         return
 
     items = list(zip(scores, labels, boxes))
@@ -125,6 +127,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     avg_x1 = int(math.ceil(sum([x1 for x1, y1, x2, y2 in coords]) / len(coords)))
     avg_x2 = int(math.ceil(sum([x2 for x1, y1, x2, y2 in coords]) / len(coords)))
 
+    print("\tINFO: name field avg height is {} with avg x1 {} and x2 {}".format(avg_height, avg_x1, avg_x2))
+
     # NOTE: corrections
     if len(coords) > 35:
         exp = 50
@@ -137,19 +141,27 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     new_coords = []
 
     # NOTE: check if the name col header is present, if it is, use that as the first thing
+    failed = False
     if len(name_header) > 0:
         coords_check = coords
         header_coord = list(map(int, name_header[0][2].numpy()))
         #print('col header coords:', pcoord)
     else:
         coords_check = coords[1:]
+<<<<<<< HEAD
         header_coord = None
         #pcoord = coords[0]
         print("ERROR! Could not find name column header")
         #return None
+=======
+        pcoord = coords[0]
+        print("{} Output status: ERROR! Could not find name column header, giving up".format(img_path_str))
+        failed = True
+>>>>>>> b5814c2ded53350996a8654526c4900b5a5ed2fc
 
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
+        name_col_orig_end = name_col_coord[3]
         name_col_coord[1] = 0
         name_col_coord[3] = image.shape[0]
         fixed_coords = []
@@ -175,6 +187,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         print("\tFiltered", n_filtered, "name cells")
         coords = fixed_coords
     else:
+<<<<<<< HEAD
         name_col_coord = None
         print("ERROR! Could not identify the name column, results may be bad")
         #return None
@@ -330,6 +343,101 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     coords.sort(key=lambda x: (x[1] + x[3]) / 2)
     print('\tINFO: correct amount?', exp == len(coords), "({}/{})".format(len(coords), exp))
+=======
+        print("{} Output status: ERROR! Could not identify the name column, giving up".format(img_path_str))
+        failed = True
+
+    if len(items) <= 0:
+        print("{} Output status: ERROR! found no fields on page, giving up".format(img_path_str))
+        failed = True
+
+    if failed:
+        if debug_dir:
+            try:
+                makedirs(debug_dir)
+            except:
+                pass
+            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
+        return None
+
+
+    fixed_coords = []
+    filtered = []
+    for idx, ccoord in enumerate(coords_check):
+
+        overlap = area(name_col_coord, ccoord)
+        #print('p', pcoord)
+        #print('c', ccoord)
+        #print('o', overlap)
+
+        if overlap is None:
+            filtered.append(ccoord)
+            continue
+
+        fixed_coords.append(ccoord)
+
+        if pcoord[3] + BUFFER > ccoord[1]:
+            pcoord = ccoord
+        else:
+            while pcoord[3] + BUFFER <= ccoord[1]:
+                y1 = pcoord[3]
+                y2 = y1 + avg_height
+
+                pcoord = (avg_x1, y1, avg_x2, y2)
+                new_coords.append(pcoord)
+            pcoord = ccoord
+    coords = fixed_coords + new_coords
+
+    coords.sort(key=lambda x: (x[1] + x[3]) / 2)
+    last = coords[-1]
+    add_to_end = []
+    while len(coords) < exp and last[3] + avg_height - 10 < name_col_orig_end:
+        y1 = last[3] - 15
+        y2 = y1 + avg_height
+        new_coord = avg_x1, y1, avg_x2, y2
+        add_to_end.append(new_coord)
+
+        last = new_coord
+    coords += add_to_end
+
+    for coord in new_coords:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 0, 0]),
+            2
+        )
+
+    for coord in add_to_end:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 0, 255]),
+            2
+            )
+
+    for coord in filtered:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([255, 128, 0]),
+            2
+        )
+
+    print("\tINFO: filtered out {} name fields".format(len(filtered)))
+
+    coords.sort(key=lambda x: (x[1] + x[3]) / 2)
+    print('\tINFO: correct amount?', exp == len(coords))
+    if len(coords) > exp:
+        coords = coords[:exp]
+        print("\tINFO: get top {} amount ? {}".format(exp, exp == len(coords)))
+>>>>>>> b5814c2ded53350996a8654526c4900b5a5ed2fc
 
     for x1, y1, x2, y2 in coords:
         y1 -= 5
@@ -337,14 +445,56 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         frag = image[y1 : y2, x1 : x2]
         frags.append(frag)
 
+
+    # NOTE: check to see if any cells overlap too much
+    write_debug = False
+    too_much_overlap = []
+    for idx, coord in enumerate(coords[:-1]):
+        c_y2 = coord[3]
+        n_y1 = coords[idx + 1][1]
+        if c_y2 - n_y1 > avg_height / 2:
+            print("\tINFO: found cells that overlap by {}".format(avg_height / 2))
+            too_much_overlap.append(coord)
+
+    for coord in too_much_overlap:
+        x1, y1, x2, y2 = coord
+        predictions = cv2.rectangle(
+            predictions,
+            tuple((x1, y1)),
+            tuple((x2, y2)),
+            tuple([128, 0, 255]),
+            2
+        )
+
+
+    if debug_dir:
+        try:
+            makedirs(debug_dir)
+        except:
+            pass
+        if exp != len(coords) or len(too_much_overlap) > 0:
+            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
+
+
     print('\tINFO: final output of', len(frags), 'snippets')
 
+<<<<<<< HEAD
     print('\tinserted', len(new_coords), 'cells')
     status = exp == len(coords)
+=======
+    print('\tINFO: inserted', len(new_coords), 'cells')
+    print("\tINFO: inserted {} cells at the end".format(len(add_to_end)))
 
-    print(out_dir, prefix)
+>>>>>>> b5814c2ded53350996a8654526c4900b5a5ed2fc
+
+    #print(out_dir, prefix)
     if out_dir is None:
+<<<<<<< HEAD
         return status, top_predictions, predictions
+=======
+        print("{} Output status: PASS, fragments not written to disk".format(img_path_str))
+        return top_predictions, predictions
+>>>>>>> b5814c2ded53350996a8654526c4900b5a5ed2fc
 
     img_out_dir = join(out_dir, prefix)
     try:
@@ -352,10 +502,18 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     except:
         print("\tINFO: maybe out dir already exists?")
 
-
     for i, frag in enumerate(frags):
         fname = prefix + '_' + str(i) + '.jpg'
         out_path = join(img_out_dir, fname)
         cv2.imwrite(out_path, frag, encode_param)
 
+<<<<<<< HEAD
     return status, top_predictions, predictions
+=======
+    if len(coords) == exp and len(too_much_overlap) == 0:
+        print("{} Output status: PASS".format(img_path_str))
+    else:
+        print("{} Output status: FAIL".format(img_path_str))
+
+    return top_predictions, predictions
+>>>>>>> b5814c2ded53350996a8654526c4900b5a5ed2fc
