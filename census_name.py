@@ -13,7 +13,7 @@ from os.path import isfile, join
 
 from collections import namedtuple
 Rectangle = namedtuple('Rectangle', 'xmin ymin xmax ymax')
-encode_param = [cv2.IMWRITE_JPEG_QUALITY, 30]
+encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 30]
 
 #from sklearn.linear_model import LinearRegression
 
@@ -138,6 +138,10 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         exp = 0
     else:
         exp = 25
+
+    # NOTE: correct based on image size
+    if img_width > 5500:
+        exp = 50
 
     print('\tINFO: initially found', len(coords), 'snippets')
     new_coords = []
