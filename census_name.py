@@ -15,7 +15,7 @@ from collections import namedtuple
 Rectangle = namedtuple('Rectangle', 'xmin ymin xmax ymax')
 encode_param = [cv2.IMWRITE_JPEG_QUALITY, 30]
 
-from sklearn.linear_model import LinearRegression
+#from sklearn.linear_model import LinearRegression
 
 
 BUFFER = 15
