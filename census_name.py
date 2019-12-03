@@ -86,7 +86,6 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     if len(boxes) == 0:
         print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
-        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
         return
 
     items = list(zip(scores, labels, boxes))
