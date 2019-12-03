@@ -19,7 +19,7 @@ cfg.merge_from_list(["MODEL.DEVICE", "cpu"])
 
 coco_demo = COCODemo(
     cfg,
-    confidence_threshold=0.9,
+    confidence_threshold=0.7,
 )
 
 if len(sys.argv) > 4:
@@ -27,7 +27,12 @@ if len(sys.argv) > 4:
 else:
     out_dir = None
 
-top_predictions, predictions = process(coco_demo, 0, sys.argv[2], out_dir, None)
+if len(sys.argv) > 5:
+    debug_dir = sys.argv[5]
+else:
+    debug_dir = None
+
+top_predictions, predictions = process(coco_demo, 0, sys.argv[2], out_dir, debug_dir)
 #scores = top_predictions.get_field("scores")
 #scores = np.sort(scores.numpy())
 #print(scores)

@@ -6,6 +6,7 @@ import sys
 import torch
 import numpy as np
 import cv2
+from os import makedirs
 
 from os import listdir
 from os.path import isfile, join
@@ -25,6 +26,11 @@ coco_demo = COCODemo(
     min_image_size=800,
     confidence_threshold=0.5,
 )
+
+try:
+    makedirs(sys.argv[3])
+except:
+    print('output dir already exists')
 
 mypath = sys.argv[2]
 img_paths = [(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f)) and (f[-3:] == 'jpg' or f[-3:] == 'png')]
