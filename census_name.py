@@ -165,10 +165,10 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         fixed_coords = []
         #filtered_coords = []
         n_filtered = 0
-        
+
         for coord in coords:
             filtered = False
-            
+
             overlap = calc_overlap(name_col_coord, coord)
             if overlap is None:
                 #filtered_coords.append(coord)
@@ -200,6 +200,38 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         print("\tWARNING! Could not identify the name column, results may be bad")
         #return None
 
+    areas = [calc_area(x) for x in coords]
+    areas_med = np.median(areas)
+    areas_std = np.std(areas)
+    areas_buff = areas_std * 4
+    #print(areas)
+    #print('areas', areas_med, areas_std)
+
+    if areas_std > 2500:
+        n_filtered = 0
+        fixed_coords = []
+        for area, coord in zip(areas, coords):
+            filtered = False
+
+            # NOTE: should we test if it's too big too?
+            if area < areas_med - areas_buff:
+                filtered = True
+            else:
+                fixed_coords.append(coord)
+
+            if filtered:
+                x1, y1, x2, y2 = coord
+                predictions = cv2.rectangle(
+                    predictions,
+                    tuple((x1, y1)),
+                    tuple((x2, y2)),
+                    tuple([255, 0, 255]),
+                    2
+                )
+                n_filtered += 1
+        print("\tFiltered", n_filtered, "small name cells")
+    coords = fixed_coords
+
     tl_dists_x = []
     tl_dists_y = []
     br_dists_x = []
@@ -215,14 +247,14 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     dist_med = np.median(dists)
     dist_std = np.std(dists)
     dist_buff = dist_std / 2
-    
+
     tl_x_med = np.median(tl_dists_x)
     tl_y_med = np.median(tl_dists_y)
     br_x_med = np.median(br_dists_x)
     br_y_med = np.median(br_dists_y)
-    
+
     #print('\tmedian', dist_med, dist_std)
- 
+
 
     # NOTE: try to add in missing fields
     #top_left = [x[:2] for x in coords]
@@ -245,7 +277,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
      #print(items)
     #print(bottom_right)
 
-    
+
     #filtered = []
     if dist_std > 8.:
         for i, ccoord in enumerate(coords[:-1]):
@@ -280,7 +312,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                         overlap /= calc_area(ncoord)
                         if overlap > 0.9:
                             break
-                    
+
                     dist = ccoord[3] - ncoord[1]
                     #print('\tnew', dist, ccoord, ncoord)
                     new_coords.append(ccoord)
