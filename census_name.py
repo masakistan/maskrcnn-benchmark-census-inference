@@ -304,6 +304,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             )
     coords.sort(key=lambda x: (x[1] + x[3]) / 2)
 
+    '''
     if debug_dir:
         try:
             makedirs(debug_dir)
@@ -311,6 +312,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             pass
         if exp != len(coords):
             cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
+    '''
 
     #print("\tINFO: filtered out {} name fields".format(len(filtered)))
 
