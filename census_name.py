@@ -86,6 +86,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     if len(boxes) == 0:
         print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
+        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
         return
 
     items = list(zip(scores, labels, boxes))
@@ -122,6 +123,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         coords.append((x1, y1, x2, y2))
 
     if len(coords) == 0:
+        print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
+        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
         return None
     avg_height = int(math.ceil(sum([y2 - y1 for x1, y1, x2, y2 in coords]) / len(coords)))
     avg_x1 = int(math.ceil(sum([x1 for x1, y1, x2, y2 in coords]) / len(coords)))
@@ -148,7 +151,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     else:
         coords_check = coords[1:]
         header_coord = None
-        print("{} Output status: ERROR! Could not find name column header, giving up".format(img_path_str))
+        print("\tWARNING: could not find column header, results could be bad!")
+        #print("{} Output status: ERROR! Could not find name column header, giving up".format(img_path_str))
 
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
@@ -190,7 +194,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         coords = fixed_coords
     else:
         name_col_coord = None
-        print("ERROR! Could not identify the name column, results may be bad")
+        print("\tWARNING! Could not identify the name column, results may be bad")
         #return None
 
     tl_dists_x = []
@@ -214,26 +218,26 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     br_x_med = np.median(br_dists_x)
     br_y_med = np.median(br_dists_y)
     
-    print('\tmedian', dist_med, dist_std)
+    #print('\tmedian', dist_med, dist_std)
  
 
     # NOTE: try to add in missing fields
-    top_left = [x[:2] for x in coords]
-    bottom_right = [x[2:] for x in coords]
-    br_ys = [[x[1]] for x in bottom_right]
-    br_xs = [x[0] for x in bottom_right]
+    #top_left = [x[:2] for x in coords]
+    #bottom_right = [x[2:] for x in coords]
+    #br_ys = [[x[1]] for x in bottom_right]
+    #br_xs = [x[0] for x in bottom_right]
 
-    br_reg = LinearRegression().fit(br_ys, br_xs)
+    #br_reg = LinearRegression().fit(br_ys, br_xs)
     #print(br_reg.score(br_ys, br_xs))
-    start = (br_reg.predict([[0]]), 0)
-    end = (br_reg.predict([[img_height]]), img_height)
+    #start = (br_reg.predict([[0]]), 0)
+    #end = (br_reg.predict([[img_height]]), img_height)
     #cv2.line(predictions, start, end, (0, 255, 0), 4)
 
-    tl_ys = [[x[1]] for x in top_left]
-    tl_xs = [x[0] for x in top_left]
-    tl_reg = LinearRegression().fit(tl_ys, tl_xs)
-    start = (tl_reg.predict([[0]]), 0)
-    end = (tl_reg.predict([[img_height]]), img_height)
+    #tl_ys = [[x[1]] for x in top_left]
+    #tl_xs = [x[0] for x in top_left]
+    #tl_reg = LinearRegression().fit(tl_ys, tl_xs)
+    #start = (tl_reg.predict([[0]]), 0)
+    #end = (tl_reg.predict([[img_height]]), img_height)
     #cv2.line(predictions, start, end, (0, 255, 0), 4)
      #print(items)
     #print(bottom_right)
@@ -278,7 +282,9 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                     #print('\tnew', dist, ccoord, ncoord)
                     new_coords.append(ccoord)
                     if inserted > 20:
-                        print("ERROR! Tried inserting too many cells")
+                        #print("ERROR! Tried inserting too many cells")
+                        print("{} Output status: FAIL! added too many cells".format(img_path_str))
+                        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
                         return None
                     inserted += 1
         coords = coords + new_coords
@@ -329,7 +335,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 y2 = lcoord[3] - br_y_med
 
                 end_cells.append(tuple(map(int, (x1, y1, x2, y2))))
-                print('adding to end', end_cells[-1], len(coords) + len(end_cells))
+                #print('\tINFO: adding to end', end_cells[-1], len(coords) + len(end_cells))
 
             for coord in end_cells:
                 x1, y1, x2, y2 = coord
@@ -374,6 +380,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             2
         )
 
+    '''
 
     if debug_dir:
         try:
@@ -381,9 +388,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         except:
             pass
         if exp != len(coords) or len(too_much_overlap) > 0:
-            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
+            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
 
-    '''
 
     print('\tINFO: final output of', len(frags), 'snippets')
 

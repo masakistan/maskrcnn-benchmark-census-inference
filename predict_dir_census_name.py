@@ -45,6 +45,6 @@ for img_idx, img_path in enumerate(img_paths):
         print("\tINFO: no valid cells found.")
         continue
 
-    top_predictions, predictions = res
+    status, top_predictions, predictions = res
     #opath = join(out_dir, img_path[-1])
     #cv2.imwrite(opath, predictions)
