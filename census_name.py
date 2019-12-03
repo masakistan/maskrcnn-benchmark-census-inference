@@ -160,9 +160,22 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         n_filtered = 0
         
         for coord in coords:
+            filtered = False
+            
             overlap = calc_overlap(name_col_coord, coord)
             if overlap is None:
                 #filtered_coords.append(coord)
+                filtered = True
+            else:
+                overlap /= calc_area(coord)
+                print('filtering overlap perc', overlap)
+                if overlap < 0.05:
+                    print("filtering")
+                    filtered = True
+                else:
+                    fixed_coords.append(coord)
+
+            if filtered:
                 x1, y1, x2, y2 = coord
                 predictions = cv2.rectangle(
                     predictions,
@@ -172,8 +185,6 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                     2
                 )
                 n_filtered += 1
-            else:
-                fixed_coords.append(coord)
 
         print("\tFiltered", n_filtered, "name cells")
         coords = fixed_coords
@@ -257,10 +268,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                     ccoord = tuple(map(int, (x1, y1, x2, y2)))
 
                     overlap = calc_overlap(ccoord, ncoord)
-                    print('overlap', overlap, overlap / calc_area(ncoord))
-                    overlap /= calc_area(ncoord)
-                    if overlap > 0.9:
-                        break
+                    if overlap:
+                        print('overlap', overlap, overlap / calc_area(ncoord))
+                        overlap /= calc_area(ncoord)
+                        if overlap > 0.9:
+                            break
                     
                     dist = ccoord[3] - ncoord[1]
                     #print('\tnew', dist, ccoord, ncoord)
@@ -340,6 +352,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         frag = image[y1 : y2, x1 : x2]
         frags.append(frag)
 
+    '''
 
     # NOTE: check to see if any cells overlap too much
     write_debug = False
@@ -370,6 +383,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         if exp != len(coords) or len(too_much_overlap) > 0:
             cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions)
 
+    '''
 
     print('\tINFO: final output of', len(frags), 'snippets')
 
@@ -392,7 +406,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         out_path = join(img_out_dir, fname)
         cv2.imwrite(out_path, frag, encode_param)
 
-    if len(coords) == exp and len(too_much_overlap) == 0:
+    if len(coords) == exp:
         print("{} Output status: PASS".format(img_path_str))
     else:
         print("{} Output status: FAIL".format(img_path_str))
