@@ -140,7 +140,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         exp = 25
 
     # NOTE: correct based on image size
-    if img_width > 5500:
+    if img_width > 5000:
         exp = 50
 
     print('\tINFO: initially found', len(coords), 'snippets')
