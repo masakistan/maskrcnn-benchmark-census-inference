@@ -116,14 +116,22 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     coords = []
     frags = []
+    scores = []
 
     for idx, (score, label, box) in enumerate(items):
         x1, y1, x2, y2 = map(int, box.numpy())
+        scores.append(score)
         coords.append((x1, y1, x2, y2))
+    print("\tINFO: average score {}".format(np.mean(scores)))
+    if np.mean(scores) < 0.7:
+        print("{} Output status: WARNING! Cells have avg score of {}, giving up".format(img_path_str, np.mean(scores)))
+        print(debug_dir, prefix)
+        if debug_dir:
+            cv2.imwrite(join(debug_dir, prefix + '.low_avg_score.jpg'), predictions, encode_param)
+        return
 
     if len(coords) == 0:
         print("{} Output status: WARNING! No cells found, giving up".format(img_path_str))
-        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
         return None
     avg_height = int(math.ceil(sum([y2 - y1 for x1, y1, x2, y2 in coords]) / len(coords)))
     avg_x1 = int(math.ceil(sum([x1 for x1, y1, x2, y2 in coords]) / len(coords)))
@@ -238,11 +246,14 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     br_dists_y = []
     dists = []
     for i, x in enumerate(coords[:-1]):
+        if coords[i + 1][1] - x[3] > 10:
+            continue
         dists.append(x[3] - coords[i + 1][1])
         tl_dists_x.append(x[0] - coords[i + 1][0])
         tl_dists_y.append(x[1] - coords[i + 1][1])
         br_dists_x.append(x[2] - coords[i + 1][2])
         br_dists_y.append(x[3] - coords[i + 1][3])
+        #print(x[3] - coords[i + 1][1])
 
     dist_med = np.median(dists)
     dist_std = np.std(dists)
@@ -252,6 +263,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     tl_y_med = np.median(tl_dists_y)
     br_x_med = np.median(br_dists_x)
     br_y_med = np.median(br_dists_y)
+    #print(tl_dists_x)
+    #print(tl_dists_y)
+    #print(br_dists_x)
+    #print(br_dists_y)
+    #print(tl_x_med, tl_y_med, br_x_med, br_y_med)
 
     #print('\tmedian', dist_med, dist_std)
 
@@ -279,7 +295,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
 
     #filtered = []
-    if dist_std > 8.:
+    if dist_std > 0.:
         for i, ccoord in enumerate(coords[:-1]):
             ncoord = coords[i + 1]
             dist = ccoord[3] - ncoord[1]

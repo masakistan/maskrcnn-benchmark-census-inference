@@ -20,7 +20,7 @@ cfg.merge_from_list(["MODEL.DEVICE", "cpu"])
 
 coco_demo = COCODemo(
     cfg,
-    confidence_threshold=0.5,
+    confidence_threshold=0.7,
 )
 
 out_dir = sys.argv[3]
@@ -34,6 +34,7 @@ with open(sys.argv[2], 'r') as fh:
         print(img_path)
         res = process(coco_demo, 0, img_path, None, None)
         if res is None:
+            success += 1
             continue
         status, top_predictions, predictions = res
         if status:

@@ -27,7 +27,7 @@ cfg.merge_from_list(["MODEL.DEVICE", "cpu"])
 
 coco_demo = COCODemo(
     cfg,
-    confidence_threshold=0.5,
+    confidence_threshold=0.7,
 )
 # load image and then run prediction
 
@@ -36,6 +36,8 @@ img_paths = [(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f)) and
 
 out_dir = sys.argv[3]
 debug_dir = sys.argv[4]
+success = 0
+failure = 0
 
 for img_idx, img_path in enumerate(img_paths):
     print(img_path)
@@ -44,7 +46,18 @@ for img_idx, img_path in enumerate(img_paths):
     if res is None:
         print("\tINFO: no valid cells found.")
         continue
+        if res is None:
+            success += 1
+            continue
+        status, top_predictions, predictions = res
+        if status:
+            success += 1
+        else:
+            failure += 1
 
     status, top_predictions, predictions = res
     #opath = join(out_dir, img_path[-1])
     #cv2.imwrite(opath, predictions)
+
+print("Success: {}".format(success))
+print("Failure: {}".format(failure))
