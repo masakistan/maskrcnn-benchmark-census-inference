@@ -230,7 +230,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 )
                 n_filtered += 1
         print("\tFiltered", n_filtered, "small name cells")
-    coords = fixed_coords
+        coords = fixed_coords
 
     tl_dists_x = []
     tl_dists_y = []
