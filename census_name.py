@@ -160,23 +160,23 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     if len(name_col) > 0:
         name_col_coord = list(map(int, name_col[0][2].numpy()))
         name_col_orig_end = name_col_coord[3]
-        #name_col_coord[1] = 0
-        #name_col_coord[3] = image.shape[0]
+        name_col_coord[1] = 0
+        name_col_coord[3] = image.shape[0]
         fixed_coords = []
         #filtered_coords = []
         n_filtered = 0
-
+        #print('name col coord', name_col_coord)
         for coord in coords:
             filtered = False
-
             overlap = calc_overlap(name_col_coord, coord)
+            #print('overlap', overlap, coord)
             if overlap is None:
                 #filtered_coords.append(coord)
                 filtered = True
             else:
                 overlap /= calc_area(coord)
                 #print('filtering overlap perc', overlap)
-                if overlap < 0.05:
+                if overlap < 0.50:
                     #print("filtering")
                     filtered = True
                 else:
@@ -435,7 +435,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     #print(out_dir, prefix)
     if out_dir is None:
-        print("{} Output status: PASS, fragments not written to disk".format(img_path_str))
+        if status:
+            status = "PASS"
+        else:
+            status = "FAIL"
+        print("{} Output status: {}, fragments not written to disk".format(img_path_str, status))
         return status, top_predictions, predictions
 
     img_out_dir = join(out_dir, prefix)

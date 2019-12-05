@@ -27,7 +27,7 @@ cfg.merge_from_list(["MODEL.DEVICE", "cpu"])
 
 coco_demo = COCODemo(
     cfg,
-    confidence_threshold=0.7,
+    confidence_threshold=0.5,
 )
 # load image and then run prediction
 
