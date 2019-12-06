@@ -148,7 +148,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         exp = 25
 
     # NOTE: correct based on image size
-    if img_width > 5000:
+    if img_width > 5000 and img_height > 3500:
+
         exp = 50
 
     print('\tINFO: initially found', len(coords), 'snippets')
@@ -257,7 +258,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     dist_med = np.median(dists)
     dist_std = np.std(dists)
-    dist_buff = dist_std / 2
+    dist_buff = dist_std
 
     tl_x_med = np.median(tl_dists_x)
     tl_y_med = np.median(tl_dists_y)
@@ -298,13 +299,13 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     if dist_std > 0.:
         for i, ccoord in enumerate(coords[:-1]):
             ncoord = coords[i + 1]
-            dist = ccoord[3] - ncoord[1]
+            dist = ncoord[1] - ccoord[3]
 
             #print('dist', dist)
             # NOTE: i guess we only care of the gap is too large
             #if dist > dist_med - dist_buff and dist < dist_med + dist_buff:
-            #print('dist', dist)
-            if dist > dist_med - dist_buff:
+            #print(i, 'dist', dist, dist_med, dist_buff)
+            if dist < dist_med - dist_buff:
                 pass
                 #print('moving on')
             else:
@@ -312,7 +313,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 #print('inserting')
                 # NOTE: i guess we only care of the gap is too large
                 #print('starting dist', dist, dist_med, dist_std, dist_med - dist_std)
-                while dist < dist_med - dist_buff:
+                while dist > dist_med - dist_buff:
                     #print('\tinsertion', dist, ccoord, ncoord)
 
                     x1 = ccoord[0] - tl_x_med
@@ -329,7 +330,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                         if overlap > 0.9:
                             break
 
-                    dist = ccoord[3] - ncoord[1]
+                    dist = ncoord[1] - ccoord[3]
                     #print('\tnew', dist, ccoord, ncoord)
                     new_coords.append(ccoord)
                     if inserted > 20:
@@ -339,6 +340,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                         return None
                     inserted += 1
         coords = coords + new_coords
+        print("\tINFO: size after insert {}".format(len(coords)))
 
         for coord in new_coords:
             x1, y1, x2, y2 = coord
@@ -366,9 +368,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     # NOTE: try to add missing coords at bottom and top
     if header_coord:
-        dist = np.abs(header_coord[3] - coords[0][1])
+        dist = coords[0][1] - header_coord[3]
         between_header = []
-        if dist > dist_med - dist_buff and dist < dist_med + dist_buff:
+        #print(dist, dist_med, dist_buff)
+        #if dist > dist_med - dist_buff and dist < dist_med + dist_buff:
+        if dist < 10:
             # NOTE: try to insert a cell here
             add_to_end = True
         else:
@@ -386,6 +390,10 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 y1 = lcoord[1] - tl_y_med
                 x2 = lcoord[2] - br_x_med
                 y2 = lcoord[3] - br_y_med
+
+                if y2 > img_height:
+                    print("{} Output status: {}, added cell past boundary of image ({} {})".format(img_path_str, "FAIL", y2, img_height))
+                    return False, top_predictions, predictions
 
                 end_cells.append(tuple(map(int, (x1, y1, x2, y2))))
                 #print('\tINFO: adding to end', end_cells[-1], len(coords) + len(end_cells))
