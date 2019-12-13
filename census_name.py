@@ -373,7 +373,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         between_header = []
         #print(dist, dist_med, dist_buff)
         #if dist > dist_med - dist_buff and dist < dist_med + dist_buff:
-        if dist < 10:
+        if dist < 25:
             # NOTE: no need to add cells between header and fields
             add_to_beginning = False
             add_to_end = True
@@ -383,20 +383,22 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
         if add_to_beginning:
             begin_cells = []
-            ccoord = [
+            fcoord = [
                     header_coord[0],
                     header_coord[3] - avg_height,
                     header_coord[2],
                     header_coord[3]
                     ]
-            overlap = calc_overlap(coords[0], ccoord)
-            while overlap is None:
-                x1 = int(ccoord[0] - tl_x_med)
-                y1 = int(ccoord[1] - tl_y_med)
-                x2 = int(ccoord[2] - br_x_med)
-                y2 = int(ccoord[3] - br_y_med)
 
-                ccoord = tuple(map(int, (x1, y1, x2, y2)))
+            # NOTE: create the new cell
+            x1 = int(fcoord[0] - tl_x_med)
+            y1 = int(fcoord[1] - tl_y_med)
+            x2 = int(fcoord[2] - br_x_med)
+            y2 = int(fcoord[3] - br_y_med)
+            ccoord = tuple(map(int, (x1, y1, x2, y2)))
+            overlap = calc_overlap(coords[0], ccoord)
+
+            while overlap is None:
                 begin_cells.append(ccoord)
                 predictions = cv2.rectangle(
                     predictions,
@@ -405,9 +407,16 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                     tuple([0, 128, 128]),
                     2
                     )
+
+                x1 = int(ccoord[0] - tl_x_med)
+                y1 = int(ccoord[1] - tl_y_med)
+                x2 = int(ccoord[2] - br_x_med)
+                y2 = int(ccoord[3] - br_y_med)
+                ccoord = tuple(map(int, (x1, y1, x2, y2)))
+
                 overlap = calc_overlap(coords[0], ccoord)
 
-                add_to_end = True
+            add_to_end = True
             print("\tINFO: inserted {} cells at the beginning".format(len(begin_cells)))
             coords = begin_cells + coords
 
