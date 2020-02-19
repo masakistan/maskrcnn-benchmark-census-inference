@@ -30,8 +30,9 @@ failure = 0
 with open(sys.argv[2], 'r') as fh:
     for line in fh:
         img_path = line.strip()
-        base = img_path[img_path.rfind('/') + 1:]
+        base = img_path[img_path.rfind('/') + 1: img_path.rfind('.')]
         print(img_path)
+        print('base', base)
         res = process(coco_demo, 0, img_path, None, None)
         if res is None:
             success += 1
@@ -44,7 +45,7 @@ with open(sys.argv[2], 'r') as fh:
             #scores = top_predictions.get_field("scores")
         #scores = np.sort(scores.numpy())
         #print(scores)
-        out_path = join(out_dir, prefix + base)
+        out_path = join(out_dir, prefix + base + '.jpg')
         print(out_path)
         io.imsave(out_path, predictions)
 print("Success: {}".format(success))

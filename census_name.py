@@ -10,6 +10,7 @@ from collections import Counter
 from os import makedirs
 from os import listdir
 from os.path import isfile, join
+#from PIL import Image
 
 from collections import namedtuple
 Rectangle = namedtuple('Rectangle', 'xmin ymin xmax ymax')
@@ -54,11 +55,18 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     # load image and then run prediction
     try:
         if type(img_path) == list or type(img_path) == tuple:
-            image = io.imread(join(*img_path))
+            image = cv2.imread(join(*img_path))
+            #image = Image.fromarray(image)
             img_path_str = join(*img_path)
         else:
-            image = io.imread(img_path)
+            image = cv2.imread(img_path)
+            #image = Image.fromarray(image)
             img_path_str = img_path
+
+        if image is None:
+            print("{} Ouput status: FAIL! image may be corrupted".format(img_path_str))
+
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if image.shape[0] < 1000 or image.shape[1] < 1000:
             print("{} Output status: FAIL! image has strange dimensions {}".format(img_path_str, image.shape))
             return
@@ -156,10 +164,15 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
     new_coords = []
 
     # NOTE: check if the name col header is present, if it is, use that as the first thing
-    if len(name_header) > 0:
+    if len(name_header) == 1:
         coords_check = coords
         header_coord = list(map(int, name_header[0][2].numpy()))
         #print('col header coords:', pcoord)
+    elif len(name_header) > 1:
+        print("{} Output status: FAIL! too many headers found".format(img_path_str))
+        if debug_dir:
+            cv2.imwrite(join(debug_dir, prefix + '.too_many_headers.jpg'), predictions, encode_param)
+        return
     else:
         coords_check = coords[1:]
         header_coord = None
@@ -256,14 +269,28 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
         br_dists_y.append(x[3] - coords[i + 1][3])
         #print(x[3] - coords[i + 1][1])
 
+    if len(tl_dists_x) == 0 or len(tl_dists_y) == 0 or len(br_dists_x) == 0 or len(br_dists_y) == 0:
+        if debug_dir:
+            cv2.imwrite(join(debug_dir, prefix + '.no_neighbors.jpg'), predictions, encode_param)
+        print("{} Output status: FAIL! no neighboring cells".format(img_path_str))
+        return
+
     dist_med = np.median(dists)
     dist_std = np.std(dists)
     dist_buff = dist_std
+    print(tl_dists_x)
+
 
     tl_x_med = np.median(tl_dists_x)
     tl_y_med = np.median(tl_dists_y)
     br_x_med = np.median(br_dists_x)
     br_y_med = np.median(br_dists_y)
+
+    if np.isnan(tl_x_med) or np.isnan(tl_y_med) or np.isnan(br_x_med) or np.isnan(br_y_med):
+        if debug_dir:
+            cv2.imwrite(join(debug_dir, prefix + '.nan_med.jpg'), predictions, encode_param)
+        print("{} Output status: FAIL! median measurements are nan".format(img_path_str))
+        return
     #print(tl_dists_x)
     #print(tl_dists_y)
     #print(br_dists_x)
@@ -337,7 +364,8 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                     if inserted > 20:
                         #print("ERROR! Tried inserting too many cells")
                         print("{} Output status: FAIL! added too many cells".format(img_path_str))
-                        cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
+                        if debug_dir:
+                            cv2.imwrite(join(debug_dir, prefix + '.jpg'), predictions, encode_param)
                         return None
                     inserted += 1
         coords = coords + new_coords
@@ -369,6 +397,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
 
     # NOTE: try to add missing coords at bottom and top
     if header_coord:
+        #print('header coord', header_coord)
         dist = coords[0][1] - header_coord[3]
         between_header = []
         #print(dist, dist_med, dist_buff)
@@ -382,6 +411,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             add_to_end = False
 
         if add_to_beginning:
+            print("\tINFO: trying to add before header")
             begin_cells = []
             fcoord = [
                     header_coord[0],
@@ -398,7 +428,15 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             ccoord = tuple(map(int, (x1, y1, x2, y2)))
             overlap = calc_overlap(coords[0], ccoord)
 
+            added = 0
             while overlap is None:
+                added += 1
+                if added > 10:
+                    print("{} Output status: FAIL! too many cells added between header and first identified cell".format(img_path_str))
+                    if debug_dir:
+                        cv2.imwrite(join(debug_dir, prefix + '.added_too_many_after_header.jpg'), predictions, encode_param)
+                    return None
+
                 begin_cells.append(ccoord)
                 predictions = cv2.rectangle(
                     predictions,
@@ -421,6 +459,7 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
             coords = begin_cells + coords
 
         if add_to_end:
+            print("\tINFO: trying to add to bottom")
             end_cells = []
             while len(coords) + len(end_cells) < exp:
                 # NOTE: insert at the end of the column
@@ -436,6 +475,11 @@ def process(coco_demo, img_idx, img_path, out_dir, debug_dir):
                 if y2 > img_height:
                     print("{} Output status: {}, added cell past boundary of image ({} {})".format(img_path_str, "FAIL", y2, img_height))
                     return False, top_predictions, predictions
+
+                # NOTE: check for NaN values
+                if (x1 != x1) or (x2 != x2) or (y1 != y1) or (y2 != y2):
+                    print('\tINFO: found NaN! x1: {} y1: {} x2: {} y2: {}'.format(x1, y1, x2, y2))
+                    break
 
                 end_cells.append(tuple(map(int, (x1, y1, x2, y2))))
                 #print('\tINFO: adding to end', end_cells[-1], len(coords) + len(end_cells))

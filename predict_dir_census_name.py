@@ -32,16 +32,22 @@ coco_demo = COCODemo(
 # load image and then run prediction
 
 mypath = sys.argv[2]
-img_paths = [(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f)) and (f[-3:] == 'jpg' or f[-3:] == 'png')]
+img_paths = [(mypath, f) for f in listdir(mypath) if isfile(join(mypath, f)) and (f[-3:] == 'jpg' or f[-3:] == 'png' or f[-3:] == 'jp2')]
 
 out_dir = sys.argv[3]
 debug_dir = sys.argv[4]
 success = 0
 failure = 0
+skip = ['00001', '00002', '00003', '00004', '00005']
 
 for img_idx, img_path in enumerate(img_paths):
     print(img_path)
     print("{}/{} Processing image {}".format(img_idx, len(img_paths), img_path[-1]))
+    img_id = img_path[-1][img_path[-1].rfind('_') + 1: img_path[-1].rfind('.')]
+    if img_id in skip:
+        print('\tSkipping')
+        continue
+
     res = process(coco_demo, img_idx, img_path, out_dir, debug_dir)
     if res is None:
         print("\tINFO: no valid cells found.")
